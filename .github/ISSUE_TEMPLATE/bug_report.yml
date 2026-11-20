@@ -1,0 +1,31 @@
+name: Bug report / 问题反馈
+description: Report a reproducible failure. / 提交可复现的问题。
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Never paste real subscription URLs, share links, passwords or controller secrets. / 请勿提交真实订阅、分享链接、密码或控制密钥。
+  - type: input
+    id: version
+    attributes:
+      label: CLI version / CLI 版本
+      placeholder: clash-cli --version
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: OS and architecture / 系统和架构
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps, expected and actual behavior / 复现步骤及预期和实际结果
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Redacted diagnostics / 已脱敏诊断信息
+      render: text

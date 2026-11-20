@@ -1,0 +1,29 @@
+[package]
+name = "clash-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Profiles, core installation and platform adapters for Ai-Clash CLI"
+[dependencies]
+anyhow.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+reqwest.workspace = true
+
+tokio.workspace = true
+uuid.workspace = true
+tempfile.workspace = true
+fs2.workspace = true
+
+base64.workspace = true
+url.workspace = true
+percent-encoding.workspace = true
+flate2.workspace = true
+sha2.workspace = true
+
+clash-api = { path = "../clash-api" }
+
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.30", features = ["signal", "process"] }

@@ -1,0 +1,20 @@
+[package]
+name = "clash-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Headless Mihomo proxy manager with offline core bundles"
+[dependencies]
+clash-core = { path = "../clash-core" }
+anyhow.workspace = true
+clap.workspace = true
+serde_json.workspace = true
+
+tokio.workspace = true
+uuid.workspace = true
+tempfile.workspace = true
+fs2.workspace = true
+
+serde_yaml.workspace = true

@@ -1,0 +1,8 @@
+/target/
+/.clash-cli/
+*.log
+.env
+.DS_Store
+
+__pycache__/
+/dist/
