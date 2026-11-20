@@ -15,6 +15,8 @@ See the packaged English/Chinese README for subscription setup and usage. Update
 
 Release automation runs CI on Linux, Windows and macOS, plus real-engine offline installation, proxy, restart-persistence and rollback tests on both Linux architectures. Cross-platform compilation does not imply Windows/macOS runtime support.
 
-**Preview:** privileged TUN/systemd behavior has not completed end-to-end acceptance. Do not enable two proxy clients' TUN simultaneously. Use distinct listener ports when coexisting with Clash Verge. / TUN 和系统服务仍为实验功能，尚未完成特权端到端验收；与其他代理共存时请分配不同端口，且只开启一个 TUN。
+**v0.1.1 fixes:** built-in policies no longer cause false failures in all-node tests, empty node sets fail clearly, and service lifecycle commands avoid a configuration-lock startup race.
+
+**Preview:** real-node TUN/systemd/DNS/recovery passed 16 checks in isolated Ubuntu 24.04 Docker. Native server SSH continuity and IPv6 acceptance remain pending. See [validation evidence](https://github.com/ddocde/Ai-Clash_Cli/blob/main/docs/validation/docker.md). Do not enable two proxy clients' TUN simultaneously. Use distinct listener ports when coexisting with Clash Verge. / TUN 和系统服务已通过独立 Docker 的真实节点验证，真实服务器 SSH/IPv6 场景仍待验收；与其他代理共存时请分配不同端口，且只开启一个 TUN。
 
 Windows/macOS native integration and broader network acceptance are planned. This release is marked as a prerelease accordingly.

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1 — Docker acceptance fixes
+
+- Exclude Mihomo built-in routing policies from `node test --all` using API types; preserve real nodes with policy-like names.
+- Return an error for empty latency-test selections rather than reporting empty success.
+- Remove configuration writer locks from systemd lifecycle/status commands, resolving a parent/child startup race.
+- Add opt-in isolated Docker acceptance and a sanitized real-node report covering HTTP/SOCKS, systemd, TUN routing evidence, DNS hijack and network restoration.
+
 ## 0.1.0 — Linux preview
 
 - Rust CLI with subscription and local profile management, SS/VMess/VLESS/Trojan import, node selection and bounded concurrent latency tests.

@@ -1,0 +1,91 @@
+{
+  "result": "passed",
+  "checks": [
+    {
+      "check": "systemd active",
+      "result": "passed",
+      "enabled": "enabled"
+    },
+    {
+      "check": "real-node latency",
+      "result": "passed",
+      "tested": 3,
+      "available": 1
+    },
+    {
+      "check": "HTTP CONNECT HTTPS",
+      "result": "passed"
+    },
+    {
+      "check": "SOCKS5 HTTPS",
+      "result": "passed"
+    },
+    {
+      "check": "exec child proxy",
+      "result": "passed"
+    },
+    {
+      "check": "global mode",
+      "result": "passed"
+    },
+    {
+      "check": "systemd restart preserves selection",
+      "result": "passed"
+    },
+    {
+      "check": "TUN device and routing enabled",
+      "result": "passed"
+    },
+    {
+      "check": "transparent HTTPS with proxy variables bypassed",
+      "result": "passed"
+    },
+    {
+      "check": "selected remote node observed carrying TUN HTTPS traffic",
+      "result": "passed"
+    },
+    {
+      "check": "TUN DNS hijack answers reserved destination with no valid answer without TUN",
+      "result": "passed"
+    },
+    {
+      "check": "TUN disable restores routes rules interfaces and DNS file",
+      "result": "passed"
+    },
+    {
+      "check": "systemd stop with active TUN restores network",
+      "result": "passed"
+    },
+    {
+      "check": "service recovers after TUN shutdown",
+      "result": "passed"
+    },
+    {
+      "check": "service uninstall removes unit and preserves profiles",
+      "result": "passed"
+    },
+    {
+      "check": "probe guard removed and original network restored",
+      "result": "passed"
+    }
+  ],
+  "environment": {
+    "date": "2026-11-20",
+    "system": "Ubuntu 24.04 x86_64",
+    "engine": "Mihomo v1.19.34",
+    "isolation": "Docker bridge network and private cgroup namespace",
+    "source": "v0.1.1",
+    "candidate_protocols": [
+      "vless",
+      "vless",
+      "trojan"
+    ],
+    "working_protocol": "vless",
+    "cli": "v0.1.1"
+  },
+  "additional_regressions": [
+    "service status succeeds while configuration writer lock is held",
+    "configuration mutation remains excluded while the lock is held",
+    "three spaced service restarts have NRestarts=0"
+  ]
+}

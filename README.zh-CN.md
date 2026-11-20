@@ -10,7 +10,7 @@
 
 | 平台 | 状态 |
 | --- | --- |
-| Linux x86_64 | 已通过真实内核非特权冒烟测试；服务与 TUN 仍需特权环境验收 |
+| Linux x86_64 | 已在独立 Ubuntu 24.04 Docker 中通过真实节点、systemd、TUN、DNS 与恢复验证；真实服务器 SSH 场景仍待验收 |
 | Linux ARM64 | 已实现内核映射和 CI 打包；未在本地进行运行验收 |
 | Windows / macOS | 后续计划；已预留平台边界，尚不支持生产使用 |
 
@@ -212,7 +212,7 @@ python3 scripts/check_docs.py target/debug/clash-cli
 python3 scripts/smoke_real_core.py /absolute/path/to/mihomo
 ```
 
-可选的真实内核测试需要 curl，以及空闲的回环端口 17890、19090 和 18081。测试使用临时数据，不启用 TUN、不安装服务，验证 HTTP 代理、重载、选择持久化与回退。TUN、DNS 和 SSH 恢复仍需单独的特权环境验收。
+可选的真实内核测试需要 curl，以及空闲的回环端口 17890、19090 和 18081。测试使用临时数据，不启用 TUN、不安装服务，验证 HTTP 代理、重载、选择持久化与回退。真实节点的特权 Docker 验收见[容器验证说明](docs/validation/docker.md)及脱敏的 16 项报告。真实服务器 SSH 连续性和 IPv6 仍需单独验收。
 
 ## 开发与许可
 

@@ -10,7 +10,7 @@ A Rust command-line manager for the Mihomo proxy engine, designed for SSH sessio
 
 | Platform | Status |
 | --- | --- |
-| Linux x86_64 | Real-engine unprivileged smoke verified; privileged service/TUN integration still needs native acceptance testing |
+| Linux x86_64 | Real-node systemd/TUN/DNS/recovery verified in isolated Ubuntu 24.04 Docker; native-host SSH acceptance pending |
 | Linux ARM64 | Implemented asset mapping and CI packaging; not locally runtime-tested |
 | Windows / macOS | Planned; platform boundaries reserved, not production-supported |
 
@@ -212,7 +212,7 @@ python3 scripts/check_docs.py target/debug/clash-cli
 python3 scripts/smoke_real_core.py /absolute/path/to/mihomo
 ```
 
-The opt-in smoke requires curl and free loopback ports 17890, 19090 and 18081. It uses temporary data, never enables TUN or installs a service, and tests HTTP proxying, reload, selection persistence and rollback. Native TUN/DNS/SSH recovery remains a separate privileged acceptance step.
+The opt-in smoke requires curl and free loopback ports 17890, 19090 and 18081. It uses temporary data, never enables TUN or installs a service, and tests HTTP proxying, reload, selection persistence and rollback. Real-node privileged Docker acceptance is documented in [Docker validation](docs/validation/docker.md), including a sanitized 16-check report. Native-host SSH continuity and IPv6 remain separate acceptance steps.
 
 ## Development and license
 
