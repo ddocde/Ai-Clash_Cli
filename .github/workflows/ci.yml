@@ -34,3 +34,4 @@ jobs:
       - if: runner.os == 'Windows'
         run: python scripts/check_docs.py target/release/clash-cli.exe
       - run: python scripts/test_bundle_core.py
+      - run: python -m py_compile scripts/validate_live_proxy.py

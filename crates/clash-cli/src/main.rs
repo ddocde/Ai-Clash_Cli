@@ -158,6 +158,27 @@ enum Node {
 enum Group {
     List,
 }
+fn ensure_test_nodes(names: &[String]) -> Result<()> {
+    if names.is_empty() {
+        bail!(
+            "No nodes available to test; wait for core/provider readiness, check node list, or select a nonempty group"
+        );
+    }
+    Ok(())
+}
+
+/// Built-in routing policies have no remote endpoint to latency-test.
+/// Match API types, not user-controlled names (a real node may be named PASS).
+fn is_network_node(proxy: &serde_json::Value) -> bool {
+    proxy["all"].is_null()
+        && proxy["type"].as_str().is_some_and(|kind| {
+            !matches!(
+                kind,
+                "Direct" | "Reject" | "RejectDrop" | "Compatible" | "Pass" | "PassRule" | "Dns"
+            )
+        })
+}
+
 fn encode(s: &str) -> String {
     s.bytes()
         .map(|b| {
@@ -169,18 +190,11 @@ fn encode(s: &str) -> String {
         })
         .collect()
 }
-#[tokio::main]
-async fn main() -> Result<()> {
-    let cli = Cli::parse();
-    if matches!(&cli.command,Cmd::Service{action} if action=="install") && cli.data_dir.is_none() {
-        bail!("service install requires explicit --data-dir");
-    }
-    let a = App::new(match cli.data_dir {
-        Some(p) => p,
-        None => clash_core::platform::default_data_dir()?,
-    })?;
-    let _lock = if matches!(
-        &cli.command,
+fn needs_mutation_lock(command: &Cmd) -> bool {
+    // systemd serializes lifecycle jobs; holding this lock across start/restart
+    // prevents the spawned service from acquiring its own preparation lock.
+    !(matches!(
+        command,
         Cmd::Run
             | Cmd::Status
             | Cmd::Doctor
@@ -194,10 +208,23 @@ async fn main() -> Result<()> {
             | Cmd::Profile {
                 command: Profile::List
             }
-    ) {
-        None
-    } else {
+    ) || matches!(command,Cmd::Service{action} if matches!(action.as_str(),"status"|"start"|"stop"|"restart")))
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    let cli = Cli::parse();
+    if matches!(&cli.command,Cmd::Service{action} if action=="install") && cli.data_dir.is_none() {
+        bail!("service install requires explicit --data-dir");
+    }
+    let a = App::new(match cli.data_dir {
+        Some(p) => p,
+        None => clash_core::platform::default_data_dir()?,
+    })?;
+    let _lock = if needs_mutation_lock(&cli.command) {
         Some(a.lock()?)
+    } else {
+        None
     };
     let out = match cli.command {
         Cmd::Core {
@@ -429,15 +456,13 @@ async fn main() -> Result<()> {
                         .collect::<Result<_>>()?
                 } else if all {
                     map.iter()
-                        .filter(|(name, v)| {
-                            v["all"].is_null()
-                                && !["DIRECT", "REJECT", "COMPATIBLE"].contains(&name.as_str())
-                        })
+                        .filter(|(_, proxy)| is_network_node(proxy))
                         .map(|(name, _)| name.clone())
                         .collect()
                 } else {
                     bail!("Specify NAME, --group GROUP, or --all");
                 };
+                ensure_test_nodes(&names)?;
                 let semaphore = std::sync::Arc::new(tokio::sync::Semaphore::new(concurrency));
                 let mut tasks = tokio::task::JoinSet::new();
                 for name in names {
@@ -521,6 +546,60 @@ async fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn service_jobs_do_not_hold_the_childs_configuration_lock() {
+        for action in ["status", "start", "stop", "restart"] {
+            assert!(
+                !needs_mutation_lock(&Cmd::Service {
+                    action: action.into()
+                }),
+                "{action}"
+            );
+        }
+        for action in ["install", "uninstall"] {
+            assert!(
+                needs_mutation_lock(&Cmd::Service {
+                    action: action.into()
+                }),
+                "{action}"
+            );
+        }
+    }
+    #[test]
+    fn empty_test_selection_is_an_error() {
+        let error = ensure_test_nodes(&[]).unwrap_err();
+        assert!(error.to_string().contains("No nodes available"));
+        assert!(ensure_test_nodes(&["remote".to_owned()]).is_ok());
+    }
+    #[test]
+    fn all_tests_only_remote_nodes_not_routing_policies() {
+        for kind in [
+            "Direct",
+            "Reject",
+            "RejectDrop",
+            "Compatible",
+            "Pass",
+            "PassRule",
+            "Dns",
+        ] {
+            assert!(
+                !is_network_node(&json!({"name":"custom policy name","type":kind})),
+                "{kind}"
+            );
+        }
+        for kind in ["Vless", "Trojan", "Shadowsocks", "WireGuard", "Hysteria2"] {
+            assert!(
+                is_network_node(&json!({"name":"PASS","type":kind})),
+                "{kind}"
+            );
+        }
+        assert!(!is_network_node(&json!({"type":"Selector","all":["node"]})));
+        assert!(!is_network_node(&json!({"name":"missing type"})));
+        let explicit = Cli::try_parse_from(["clash-cli", "node", "test", "PASS"]).unwrap();
+        assert!(
+            matches!(explicit.command,Cmd::Node{command:Node::Test{name:Some(name),..}} if name=="PASS")
+        );
+    }
     #[test]
     fn automation_and_batch_arguments_parse() {
         let cli = Cli::try_parse_from([
