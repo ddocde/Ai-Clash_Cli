@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.2 — Slow-network downloads and extended acceptance
+
+- Add `core update --download-timeout SECONDS` with a 180-second compatible default and an explicit 1–3600-second CLI range.
+- Document that service installation enables boot startup and distinguish stop from disabling startup.
+- Reject empty, unknown-only and provider-error-only profile documents before replacing saved or running configuration.
+- Resolve YAML merge keys before enforcing runtime listener/controller/DNS restrictions while preserving the original profile bytes.
+- Allow a fresh instance to configure alternate ports while another client owns the default controller; reserve requested ports before saving.
+- Record 39 extended isolated acceptance checks covering cold startup, SSH continuity, crash recovery, subscriptions, UDP/IPv6, concurrent instances and real cross-version core updates/rollback.
+
 ## 0.1.1 — Docker acceptance fixes
 
 - Patch locked rustls and optional quinn-proto dependencies to versions resolving the initial GitHub security advisories.

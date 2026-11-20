@@ -10,6 +10,7 @@ use std::{
 };
 
 pub const DEFAULT_VERSION: &str = "v1.19.34";
+pub const DEFAULT_DOWNLOAD_TIMEOUT_SECONDS: u64 = 180;
 const MAX_ARCHIVE_BYTES: usize = 100 * 1024 * 1024;
 const MAX_ENGINE_BYTES: u64 = 200 * 1024 * 1024;
 const EXECUTE_ATTEMPTS: usize = 5;
@@ -92,11 +93,28 @@ fn persist(dir: &Path, name: &str, data: &[u8], executable: bool) -> Result<Path
 }
 /// Download an exact release and verify GitHub's published SHA-256 before executing it.
 pub async fn install(dir: &Path, version: &str) -> Result<PathBuf> {
+    install_with_timeout(
+        dir,
+        version,
+        Duration::from_secs(DEFAULT_DOWNLOAD_TIMEOUT_SECONDS),
+    )
+    .await
+}
+
+fn download_client_builder(timeout: Duration) -> Result<reqwest::ClientBuilder> {
+    if timeout.is_zero() {
+        bail!("Core download timeout must be greater than zero");
+    }
+    Ok(reqwest::Client::builder()
+        .timeout(timeout)
+        .user_agent("clash-cli"))
+}
+
+/// Each metadata/archive request has this total deadline, including its response body.
+/// Any positive duration is accepted here; the CLI separately caps its input at one hour.
+pub async fn install_with_timeout(dir: &Path, version: &str, timeout: Duration) -> Result<PathBuf> {
+    let client = download_client_builder(timeout)?.build()?;
     let name = asset_name(std::env::consts::OS, std::env::consts::ARCH, version)?;
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(180))
-        .user_agent("clash-cli")
-        .build()?;
     let metadata: Value = client
         .get(format!(
             "https://api.github.com/repos/MetaCubeX/mihomo/releases/tags/{version}"
@@ -422,6 +440,62 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
+        Ok(())
+    }
+    #[tokio::test]
+    async fn download_timeout_covers_stalled_response_body() -> Result<()> {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        async fn download(timeout: Duration) -> Result<Result<Vec<u8>>> {
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+            let address = listener.local_addr()?;
+            let server = tokio::spawn(async move {
+                let (mut socket, _) = listener.accept().await?;
+                let mut request = Vec::new();
+                while !request.ends_with(b"\r\n\r\n") {
+                    if request.len() >= 16 * 1024 {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            "Request headers too large",
+                        ));
+                    }
+                    request.push(socket.read_u8().await?);
+                }
+                socket
+                    .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\n\r\n")
+                    .await?;
+                tokio::time::sleep(Duration::from_millis(400)).await;
+                match socket.write_all(b"core").await {
+                    Ok(()) => Ok::<_, std::io::Error>(()),
+                    Err(error)
+                        if matches!(
+                            error.kind(),
+                            std::io::ErrorKind::BrokenPipe | std::io::ErrorKind::ConnectionReset
+                        ) =>
+                    {
+                        Ok(())
+                    }
+                    Err(error) => Err(error),
+                }
+            });
+            let client = download_client_builder(timeout)?.no_proxy().build()?;
+            let response = client
+                .get(format!("http://{address}/core.gz"))
+                .send()
+                .await?;
+            let result = limited_bytes(response).await;
+            server.await??;
+            Ok(result)
+        }
+        // The outer result must succeed: only body-reading may time out.
+        let error = download(Duration::from_millis(200)).await?.unwrap_err();
+        assert!(
+            error
+                .downcast_ref::<reqwest::Error>()
+                .context("Missing request timeout source")?
+                .is_timeout()
+        );
+        assert_eq!(download(Duration::from_secs(2)).await??, b"core");
+        assert!(download_client_builder(Duration::ZERO).is_err());
         Ok(())
     }
 }

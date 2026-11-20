@@ -35,6 +35,12 @@ For an explicit online update (after connectivity is available):
 clash-cli core update --version v1.19.34
 ```
 
+On a slow connection, extend the per-request timeout (seconds, including response body; default 180, range 1–3600):
+
+```sh
+clash-cli core update --version v1.19.34 --download-timeout 900
+```
+
 Updates verify the upstream SHA-256 digest and retain a previous managed binary for `core rollback`. Stop the engine before replacement, then restart it. An offline engine may also be selected:
 
 ```sh
@@ -163,6 +169,8 @@ sudo clash-cli --data-dir /var/lib/clash-cli profile add main 'https://YOUR-PROV
 sudo clash-cli --data-dir /var/lib/clash-cli profile use main
 ```
 
+`service install` enables startup at boot; `service start` starts the service immediately. `service stop` stops the current instance while leaving boot startup enabled. To disable boot startup without removing the unit, use `sudo systemctl disable clash-cli.service`.
+
 Then:
 
 ```sh
@@ -212,7 +220,7 @@ python3 scripts/check_docs.py target/debug/clash-cli
 python3 scripts/smoke_real_core.py /absolute/path/to/mihomo
 ```
 
-The opt-in smoke requires curl and free loopback ports 17890, 19090 and 18081. It uses temporary data, never enables TUN or installs a service, and tests HTTP proxying, reload, selection persistence and rollback. Real-node privileged Docker acceptance is documented in [Docker validation](docs/validation/docker.md), including a sanitized 16-check report. Native-host SSH continuity and IPv6 remain separate acceptance steps.
+The opt-in smoke requires curl and free loopback ports 17890, 19090 and 18081. It uses temporary data, never enables TUN or installs a service, and tests HTTP proxying, reload, selection persistence and rollback. Real-node privileged Docker acceptance is documented in [Docker validation](docs/validation/docker.md), including a sanitized 16-check report. [Extended acceptance](docs/validation/startup-recovery.md) adds 39 passing checks for container startup/recovery, real SSH continuity, subscriptions, UDP/IPv6 proxying, dual instances and online core update/rollback. Physical host reboot and native IPv6 uplink remain pending.
 
 ## Development and license
 
