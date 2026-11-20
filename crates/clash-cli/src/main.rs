@@ -109,6 +109,9 @@ enum Core {
     Update {
         #[arg(long, default_value=clash_core::installer::DEFAULT_VERSION)]
         version: String,
+        /// Total timeout per metadata/archive request, including response body, in seconds (1..3600)
+        #[arg(long, default_value_t=clash_core::installer::DEFAULT_DOWNLOAD_TIMEOUT_SECONDS, value_parser=clap::value_parser!(u64).range(1..=3600))]
+        download_timeout: u64,
     },
 }
 #[derive(Subcommand)]
@@ -190,6 +193,37 @@ fn encode(s: &str) -> String {
         })
         .collect()
 }
+fn configure_ports(app: &App, mixed_port: u16, controller_port: u16) -> Result<()> {
+    if mixed_port == 0 || controller_port == 0 || mixed_port == controller_port {
+        bail!("Ports must be nonzero and different");
+    }
+    let mut state = app.state()?;
+    // A fresh directory has no controller identity: the default listener may
+    // belong to another client. Only protect an existing managed instance.
+    if state["secret"].is_string()
+        && std::net::TcpStream::connect_timeout(
+            &format!(
+                "127.0.0.1:{}",
+                state["controller_port"].as_u64().unwrap_or(9090)
+            )
+            .parse()?,
+            std::time::Duration::from_millis(200),
+        )
+        .is_ok()
+    {
+        bail!("Stop the core before changing listener ports");
+    }
+    // Hold both reservations until the state write completes. The engine still
+    // checks binding at startup, since config does not reserve ports permanently.
+    let _mixed = std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, mixed_port))
+        .context("Requested mixed port is unavailable; choose another port")?;
+    let _controller = std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, controller_port))
+        .context("Requested controller port is unavailable; choose another port")?;
+    state["mixed_port"] = json!(mixed_port);
+    state["controller_port"] = json!(controller_port);
+    app.save(&state)
+}
+
 fn needs_mutation_lock(command: &Cmd) -> bool {
     // systemd serializes lifecycle jobs; holding this lock across start/restart
     // prevents the spawned service from acquiring its own preparation lock.
@@ -244,9 +278,18 @@ async fn main() -> Result<()> {
             json!({"installed":p})
         }
         Cmd::Core {
-            command: Core::Update { version },
+            command:
+                Core::Update {
+                    version,
+                    download_timeout,
+                },
         } => {
-            let p = clash_core::installer::install(&a.dir, &version).await?;
+            let p = clash_core::installer::install_with_timeout(
+                &a.dir,
+                &version,
+                std::time::Duration::from_secs(download_timeout),
+            )
+            .await?;
             let mut state = a.state()?;
             state["core"] = json!(p);
             a.save(&state)?;
@@ -331,25 +374,7 @@ async fn main() -> Result<()> {
             mixed_port,
             controller_port,
         } => {
-            if mixed_port == 0 || controller_port == 0 || mixed_port == controller_port {
-                bail!("Ports must be nonzero and different");
-            }
-            let mut state = a.state()?;
-            if std::net::TcpStream::connect_timeout(
-                &format!(
-                    "127.0.0.1:{}",
-                    state["controller_port"].as_u64().unwrap_or(9090)
-                )
-                .parse()?,
-                std::time::Duration::from_millis(200),
-            )
-            .is_ok()
-            {
-                bail!("Stop the core before changing listener ports");
-            }
-            state["mixed_port"] = json!(mixed_port);
-            state["controller_port"] = json!(controller_port);
-            a.save(&state)?;
+            configure_ports(&a, mixed_port, controller_port)?;
             json!({"restart_required":true})
         }
         Cmd::Doctor => {
@@ -546,6 +571,82 @@ async fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn available_test_ports() -> Result<(u16, u16)> {
+        let mixed = std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))?;
+        let controller = std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))?;
+        Ok((mixed.local_addr()?.port(), controller.local_addr()?.port()))
+    }
+    #[test]
+    fn fresh_directory_can_move_away_from_foreign_controller() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let app = App::new(dir.path().to_owned())?;
+        let foreign = std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))?;
+        let mut initial = app.state()?;
+        initial["controller_port"] = json!(foreign.local_addr()?.port());
+        app.save(&initial)?;
+        let (mixed, controller) = available_test_ports()?;
+        configure_ports(&app, mixed, controller)?;
+        let saved = app.state()?;
+        assert_eq!(saved["mixed_port"], mixed);
+        assert_eq!(saved["controller_port"], controller);
+        assert!(saved["secret"].is_null());
+        Ok(())
+    }
+    #[test]
+    fn occupied_requested_ports_preserve_state() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let app = App::new(dir.path().to_owned())?;
+        let initial = app.state()?;
+        app.save(&initial)?;
+        let occupied = std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))?;
+        let port = occupied.local_addr()?.port();
+        let (free, _) = available_test_ports()?;
+        assert!(configure_ports(&app, port, free).is_err());
+        assert_eq!(app.state()?, initial);
+        assert!(configure_ports(&app, free, port).is_err());
+        assert_eq!(app.state()?, initial);
+        Ok(())
+    }
+    #[test]
+    fn active_managed_controller_still_blocks_port_changes() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let app = App::new(dir.path().to_owned())?;
+        let listener = std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))?;
+        let mut initial = app.state()?;
+        initial["secret"] = json!("managed-test-secret");
+        initial["controller_port"] = json!(listener.local_addr()?.port());
+        app.save(&initial)?;
+        let (mixed, controller) = available_test_ports()?;
+        let error = configure_ports(&app, mixed, controller).unwrap_err();
+        assert!(error.to_string().contains("Stop the core"));
+        assert_eq!(app.state()?, initial);
+        Ok(())
+    }
+    #[test]
+    fn core_download_timeout_defaults_and_bounds() {
+        let default = Cli::try_parse_from(["clash-cli", "core", "update"]).unwrap();
+        assert!(matches!(
+            default.command,
+            Cmd::Core {
+                command: Core::Update {
+                    download_timeout: 180,
+                    ..
+                }
+            }
+        ));
+        for seconds in ["1", "3600"] {
+            assert!(
+                Cli::try_parse_from(["clash-cli", "core", "update", "--download-timeout", seconds])
+                    .is_ok()
+            );
+        }
+        for seconds in ["0", "3601", "-1", "invalid"] {
+            assert!(
+                Cli::try_parse_from(["clash-cli", "core", "update", "--download-timeout", seconds])
+                    .is_err()
+            );
+        }
+    }
     #[test]
     fn service_jobs_do_not_hold_the_childs_configuration_lock() {
         for action in ["status", "start", "stop", "restart"] {

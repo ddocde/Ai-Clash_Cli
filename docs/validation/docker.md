@@ -58,6 +58,6 @@ An isolated Ubuntu 24.04 container was tested with the pinned Mihomo v1.19.34 en
 
 All 16 live checks passed on the source candidate identified in the report; subsequent compatible dependency security patches are separately covered by unit tests and CI. See [the sanitized report](docker-report.json). The selected-node TUN connection and the guarded DNS query both passed. Separate regression checks confirm that `service status` works while the configuration writer lock is held, configuration mutations remain excluded, and three spaced service restarts complete with `NRestarts=0`. Rapid repeated restarts can intentionally hit systemd's normal start-rate limit; that is distinct from the fixed configuration-lock race.
 
-This verifies the container environment. Native server SSH continuity, IPv6, other distributions, reboot recovery, and Windows/macOS runtime integration still need their own acceptance. The host's Clash Verge settings and node selections were not changed.
+This verifies the container environment. Subsequent container SSH continuity, IPv6 proxy and cold-start recovery results are in [extended acceptance](startup-recovery.md). Physical host reboot, native IPv6 uplink, other distributions and Windows/macOS runtime integration still need dedicated acceptance. The host's Clash Verge settings and node selections were not changed.
 
 中文说明：本测试仅在独立容器内使用真实节点，验证代理、systemd、TUN、DNS 接管和网络恢复。输入配置属于私密数据，报告不包含节点凭据。Docker 中通过不等同于所有服务器或真实 SSH 连接场景均已验收。

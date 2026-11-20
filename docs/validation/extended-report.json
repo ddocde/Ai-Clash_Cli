@@ -1,0 +1,252 @@
+{
+  "date": "2026-11-20",
+  "environment": {
+    "system": "Ubuntu 24.04 x86_64 Docker, private network/PID/cgroup namespaces",
+    "cli": [
+      "v0.1.1 (initial recovery tests)",
+      "v0.1.2 candidate (fixes and final regressions)"
+    ],
+    "engine": [
+      "v1.19.33",
+      "v1.19.34"
+    ]
+  },
+  "groups": {
+    "startup-ssh-recovery": {
+      "result": "passed",
+      "checks": [
+        {
+          "check": "enabled service auto-starts after container cold restart",
+          "result": "passed"
+        },
+        {
+          "check": "saved TUN mode and node selection auto-restore after container cold restart",
+          "result": "passed"
+        },
+        {
+          "check": "systemd automatically recovers SIGKILL of core while TUN active",
+          "result": "passed",
+          "recovery_seconds": 4.4
+        },
+        {
+          "check": "systemd recovers parent process crash and preserves TUN connectivity",
+          "result": "passed"
+        },
+        {
+          "check": "TUN can be disabled cleanly after crash recovery",
+          "result": "passed"
+        },
+        {
+          "check": "new SSH login succeeds while TUN enabled",
+          "result": "passed"
+        },
+        {
+          "check": "same SSH TCP session survives TUN on and off with automatic peer exclusion",
+          "result": "passed"
+        },
+        {
+          "check": "transparent HTTPS works during SSH-controlled TUN session",
+          "result": "passed"
+        },
+        {
+          "check": "TUN transparent proxy automatically recovers after Docker network disconnect and reconnect",
+          "result": "passed"
+        },
+        {
+          "check": "disabling TUN after network recovery leaves no tunnel or policy-rule residue",
+          "result": "passed"
+        },
+        {
+          "check": "enabled service and saved TUN recover after unclean container termination and cold start",
+          "result": "passed"
+        }
+      ]
+    },
+    "subscription": {
+      "result": "passed",
+      "checks": [
+        {
+          "check": "real HTTPS subscription imports without replacing active profile",
+          "result": "passed",
+          "nodes": 90
+        },
+        {
+          "check": "real HTTPS subscription refresh succeeds",
+          "result": "passed"
+        },
+        {
+          "check": "network-failed refresh preserves profile state and running proxy with URL redacted",
+          "result": "passed"
+        },
+        {
+          "check": "real downloaded subscription activates and selected fresh node proxies HTTPS",
+          "result": "passed",
+          "candidates_tested": 7
+        },
+        {
+          "check": "active real subscription refresh preserves global node selection and connectivity",
+          "result": "passed"
+        }
+      ]
+    },
+    "udp": {
+      "result": "passed",
+      "checks": [
+        {
+          "check": "non-DNS UDP STUN request receives a valid binding response through TUN",
+          "result": "passed"
+        },
+        {
+          "check": "controller observes selected remote node relaying non-DNS UDP with received bytes",
+          "result": "passed"
+        }
+      ]
+    },
+    "ipv6": {
+      "result": "passed",
+      "checks": [
+        {
+          "check": "forced IPv4 SOCKS control succeeds with IPv6 enabled in profile",
+          "result": "passed"
+        },
+        {
+          "check": "SOCKS proxy reaches a forced IPv6 HTTPS target through the selected node",
+          "result": "passed"
+        },
+        {
+          "check": "TUN installs IPv6 routes for an external IPv6 target",
+          "result": "passed"
+        },
+        {
+          "check": "new IPv6 TUN connection carries HTTPS bytes through selected remote node",
+          "result": "passed"
+        },
+        {
+          "check": "TUN disable restores original IPv6 routes and policy rules",
+          "result": "passed"
+        }
+      ]
+    },
+    "upgrade": {
+      "result": "passed",
+      "checks": [
+        {
+          "check": "CLI downloads and verifies an actual older core release",
+          "result": "passed",
+          "version": "v1.19.33"
+        },
+        {
+          "check": "timed-out online download preserves existing executable and version",
+          "result": "passed",
+          "version": "v1.19.33"
+        },
+        {
+          "check": "CLI online update with configurable timeout installs the current verified release",
+          "result": "passed",
+          "version": "v1.19.34",
+          "request_timeout_seconds": 900
+        },
+        {
+          "check": "online-updated core runs the selected real node successfully",
+          "result": "passed"
+        },
+        {
+          "check": "actual cross-version rollback restores a working real-node proxy",
+          "result": "passed",
+          "version": "v1.19.33"
+        }
+      ]
+    },
+    "coexist": {
+      "result": "passed",
+      "checks": [
+        {
+          "check": "fresh second instance configures alternate ports while default controller is occupied",
+          "result": "passed"
+        },
+        {
+          "check": "two independent cores proxy HTTPS concurrently in the same network namespace",
+          "result": "passed"
+        },
+        {
+          "check": "controllers reject each others secrets and second instance leaves first state untouched",
+          "result": "passed"
+        },
+        {
+          "check": "stopping second core leaves first controller running",
+          "result": "passed"
+        }
+      ]
+    },
+    "routing": {
+      "result": "passed",
+      "checks": [
+        {
+          "check": "rule mode applies DOMAIN-SUFFIX proxy rule and final REJECT policy",
+          "result": "passed"
+        },
+        {
+          "check": "global mode bypasses rule rejection and uses selected remote node",
+          "result": "passed"
+        },
+        {
+          "check": "direct mode is applied by controller and permits direct HTTPS despite REJECT rules",
+          "result": "passed"
+        }
+      ]
+    },
+    "profile-safety": {
+      "result": "passed",
+      "checks": [
+        {
+          "check": "merged listener controller and DNS bindings are absent from actual running core while source bytes remain unchanged",
+          "result": "passed"
+        },
+        {
+          "check": "provider error envelope cannot replace active profile state or runtime",
+          "result": "passed"
+        },
+        {
+          "check": "real proxy remains usable after rejected active replacement",
+          "result": "passed"
+        }
+      ]
+    },
+    "cold-import": {
+      "result": "passed",
+      "checks": [
+        {
+          "check": "fresh data directory imports actual subscription YAML without network bootstrap",
+          "result": "passed"
+        }
+      ]
+    },
+    "protocol": {
+      "result": "not_verified",
+      "checks": [],
+      "candidate_counts": {
+        "trojan": 3,
+        "hysteria2": 4
+      },
+      "available_counts": {
+        "trojan": 0,
+        "hysteria2": 0
+      },
+      "reason": "No reachable candidates of these protocols in the current environment"
+    }
+  },
+  "passed_unique_checks": 39,
+  "limits": [
+    "Container cold starts are not physical host boot acceptance.",
+    "IPv6 proxy egress used an IPv4 transport and a temporary lab ULA; native IPv6 uplink was not tested.",
+    "No reachable Trojan/Hysteria2 candidates; SS/VMess and long-duration load remain unverified.",
+    "Windows/macOS native integration remains planned."
+  ],
+  "cleanup": {
+    "tun_disabled": true,
+    "service_stopped_and_uninstalled": true,
+    "original_policy_rules_and_loopback_ipv6_restored": true,
+    "isolated_container_removed": true,
+    "private_profiles_subscription_url_and_generated_ssh_keys_removed": true
+  }
+}

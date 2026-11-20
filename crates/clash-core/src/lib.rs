@@ -1,6 +1,7 @@
 pub mod installer;
 pub mod links;
 pub mod platform;
+mod profile_validation;
 use anyhow::{Context, Result, bail};
 use serde_json::{Value, json};
 use std::{
@@ -190,11 +191,6 @@ impl App {
         } else {
             fs::read(source)?
         };
-        let v: serde_yaml::Value = serde_yaml::from_slice(&data)
-            .map_err(|_| anyhow::anyhow!("Invalid YAML profile (contents redacted)"))?;
-        if !v.is_mapping() {
-            bail!("Profile must be a YAML mapping");
-        }
         let source = if source.starts_with("https://") {
             source.to_owned()
         } else {
@@ -213,6 +209,7 @@ impl App {
         {
             bail!("Invalid profile name");
         }
+        profile_validation::parse(data)?;
         let previous = self.state()?;
         let file = format!("{name}.yaml");
         let old = if self.dir.join(&file).exists() {
@@ -264,12 +261,11 @@ impl App {
         let name = s["active"]
             .as_str()
             .context("Select a profile with profile use NAME")?;
-        let mut c: serde_yaml::Value =
-            serde_yaml::from_slice(&fs::read(self.dir.join(format!("{name}.yaml")))?)
-                .map_err(|_| anyhow::anyhow!("Invalid YAML profile (contents redacted)"))?;
-        if !c.is_mapping() {
-            bail!("Profile must be a YAML mapping");
-        }
+        let mut c = profile_validation::parse(&fs::read(self.dir.join(format!("{name}.yaml")))?)?;
+        // Expand inherited settings before enforcing listener restrictions, so
+        // Mihomo cannot reintroduce stripped keys when it reads the runtime file.
+        c.apply_merge()
+            .map_err(|_| anyhow::anyhow!("Invalid YAML merge in profile (contents redacted)"))?;
         if s["secret"].is_null() {
             s["secret"] = json!(uuid::Uuid::new_v4().to_string());
             self.save(&s)?;

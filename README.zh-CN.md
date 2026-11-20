@@ -35,6 +35,12 @@ Linux 发布压缩包包含 `clash-cli`、`bundled/` 中固定的 Mihomo v1.19.3
 clash-cli core update --version v1.19.34
 ```
 
+慢速网络可以延长每个请求的总超时，包含响应体下载时间（单位秒，默认 180，允许 1–3600）：
+
+```sh
+clash-cli core update --version v1.19.34 --download-timeout 900
+```
+
 更新会验证上游 SHA-256 摘要，保留上一份托管内核供 `core rollback` 使用。替换前停止内核，完成后重新启动。也可以选择离线上传的内核：
 
 ```sh
@@ -163,6 +169,8 @@ sudo clash-cli --data-dir /var/lib/clash-cli profile add main 'https://YOUR-PROV
 sudo clash-cli --data-dir /var/lib/clash-cli profile use main
 ```
 
+`service install` 默认启用开机自启动，`service start` 立即启动服务。`service stop` 只停止当前实例，保留开机自启；如需仅关闭自启而保留服务文件，可执行 `sudo systemctl disable clash-cli.service`。
+
 然后执行：
 
 ```sh
@@ -212,7 +220,7 @@ python3 scripts/check_docs.py target/debug/clash-cli
 python3 scripts/smoke_real_core.py /absolute/path/to/mihomo
 ```
 
-可选的真实内核测试需要 curl，以及空闲的回环端口 17890、19090 和 18081。测试使用临时数据，不启用 TUN、不安装服务，验证 HTTP 代理、重载、选择持久化与回退。真实节点的特权 Docker 验收见[容器验证说明](docs/validation/docker.md)及脱敏的 16 项报告。真实服务器 SSH 连续性和 IPv6 仍需单独验收。
+可选的真实内核测试需要 curl，以及空闲的回环端口 17890、19090 和 18081。测试使用临时数据，不启用 TUN、不安装服务，验证 HTTP 代理、重载、选择持久化与回退。真实节点的特权 Docker 验收见[容器验证说明](docs/validation/docker.md)及脱敏的 16 项报告。[扩展验收](docs/validation/startup-recovery.md)新增 39 项通过记录，覆盖容器自启与恢复、真实 SSH 连续性、订阅、UDP/IPv6 代理、双实例及在线更新回退。物理服务器重启与原生 IPv6 外网仍待验收。
 
 ## 开发与许可
 
