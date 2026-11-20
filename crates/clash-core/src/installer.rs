@@ -12,6 +12,8 @@ use std::{
 pub const DEFAULT_VERSION: &str = "v1.19.34";
 const MAX_ARCHIVE_BYTES: usize = 100 * 1024 * 1024;
 const MAX_ENGINE_BYTES: u64 = 200 * 1024 * 1024;
+const EXECUTE_ATTEMPTS: usize = 5;
+const EXECUTE_RETRY_DELAY: Duration = Duration::from_millis(25);
 
 /// Resolve an upstream asset without exposing operating-system assumptions to callers.
 pub fn asset_name(os: &str, arch: &str, version: &str) -> Result<String> {
@@ -149,9 +151,37 @@ async fn install_archive(dir: &Path, bytes: &[u8], digest: &str, version: &str) 
     candidate.as_file().sync_all()?;
     // Close the writable descriptor before execution (Linux ETXTBSY).
     let path = candidate.into_temp_path();
-    let output = tokio::process::Command::new(&path)
-        .arg("-v")
-        .output()
+    activate_candidate(dir, path, version).await
+}
+
+// A concurrently forked child can transiently retain a writable descriptor even
+// after this process closes its own descriptor. Retry only Linux ETXTBSY.
+async fn execute_version(path: &Path) -> std::io::Result<std::process::Output> {
+    let mut attempts = 0;
+    loop {
+        attempts += 1;
+        match tokio::process::Command::new(path).arg("-v").output().await {
+            Ok(output) => return Ok(output),
+            Err(error) => {
+                #[cfg(target_os = "linux")]
+                let text_busy = error.raw_os_error() == Some(nix::errno::Errno::ETXTBSY as i32);
+                #[cfg(not(target_os = "linux"))]
+                let text_busy = false;
+                if !text_busy || attempts >= EXECUTE_ATTEMPTS {
+                    return Err(error);
+                }
+                tokio::time::sleep(EXECUTE_RETRY_DELAY).await;
+            }
+        }
+    }
+}
+
+async fn activate_candidate(
+    dir: &Path,
+    path: tempfile::TempPath,
+    version: &str,
+) -> Result<PathBuf> {
+    let output = execute_version(&path)
         .await
         .context("Downloaded engine could not execute")?;
     if !output.status.success()
@@ -331,6 +361,67 @@ mod tests {
             .await
             .unwrap_err();
         assert!(error.to_string().contains("core update"));
+        Ok(())
+    }
+    #[cfg(target_os = "linux")]
+    fn executable_candidate(dir: &Path) -> Result<tempfile::TempPath> {
+        use std::os::unix::fs::PermissionsExt;
+        let mut file = tempfile::NamedTempFile::new_in(dir)?;
+        writeln!(file, "#!/bin/sh\necho Mihomo Meta {DEFAULT_VERSION}")?;
+        file.as_file()
+            .set_permissions(fs::Permissions::from_mode(0o700))?;
+        Ok(file.into_temp_path())
+    }
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn transient_text_busy_retries_then_installs() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        fs::write(dir.path().join("mihomo"), b"previous")?;
+        let path = executable_candidate(dir.path())?;
+        let writer = fs::OpenOptions::new().write(true).open(&path)?;
+        let release = async {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            drop(writer);
+        };
+        let (installed, ()) = tokio::join!(
+            activate_candidate(dir.path(), path, DEFAULT_VERSION),
+            release
+        );
+        assert!(installed?.is_file());
+        assert_eq!(fs::read(dir.path().join("mihomo.previous"))?, b"previous");
+        Ok(())
+    }
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn persistent_text_busy_exhausts_retries_preserving_existing_engine() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        fs::write(dir.path().join("mihomo"), b"existing")?;
+        let path = executable_candidate(dir.path())?;
+        let _writer = fs::OpenOptions::new().write(true).open(&path)?;
+        let error = tokio::time::timeout(
+            Duration::from_secs(2),
+            activate_candidate(dir.path(), path, DEFAULT_VERSION),
+        )
+        .await?
+        .unwrap_err();
+        assert_eq!(
+            error
+                .downcast_ref::<std::io::Error>()
+                .context("Missing IO error source")?
+                .raw_os_error(),
+            Some(nix::errno::Errno::ETXTBSY as i32)
+        );
+        assert_eq!(fs::read(dir.path().join("mihomo"))?, b"existing");
+        assert!(!dir.path().join("mihomo.previous").exists());
+        Ok(())
+    }
+    #[tokio::test]
+    async fn missing_executable_preserves_original_error() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let error = execute_version(&dir.path().join("missing"))
+            .await
+            .unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
         Ok(())
     }
 }

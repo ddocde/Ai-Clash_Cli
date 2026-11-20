@@ -6,6 +6,7 @@
 
 - Exclude Mihomo built-in routing policies from `node test --all` using API types; preserve real nodes with policy-like names.
 - Return an error for empty latency-test selections rather than reporting empty success.
+- Retry only transient Linux executable-busy errors during verified offline core installation, with a strict attempt limit and preserved rollback state.
 - Remove configuration writer locks from systemd lifecycle/status commands, resolving a parent/child startup race.
 - Add opt-in isolated Docker acceptance and a sanitized real-node report covering HTTP/SOCKS, systemd, TUN routing evidence, DNS hijack and network restoration.
 
