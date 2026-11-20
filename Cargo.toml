@@ -19,10 +19,10 @@ uuid = { version = "1.18", features = ["v4"] }
 tempfile = "3.23"
 fs2 = "0.4"
 
-base64 = "0.22"
+base64 = "0.23"
 url = "2.5"
 percent-encoding = "2.3"
 flate2 = "1.1"
-sha2 = "0.10"
+sha2 = "0.11"
 
 thiserror = "2.0"
