@@ -74,14 +74,15 @@
     "system": "Ubuntu 24.04 x86_64",
     "engine": "Mihomo v1.19.34",
     "isolation": "Docker bridge network and private cgroup namespace",
-    "source": "v0.1.1",
+    "source": "v0.1.1 candidate",
     "candidate_protocols": [
       "vless",
       "vless",
       "trojan"
     ],
     "working_protocol": "vless",
-    "cli": "v0.1.1"
+    "cli": "v0.1.1",
+    "source_commit": "9e205f8"
   },
   "additional_regressions": [
     "service status succeeds while configuration writer lock is held",

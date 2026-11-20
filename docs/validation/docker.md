@@ -56,7 +56,7 @@ Output is a sanitized JSON report: check names, counts and booleans. External co
 
 An isolated Ubuntu 24.04 container was tested with the pinned Mihomo v1.19.34 engine and three real subscription-derived candidates. One VLESS node was available; two candidates were unavailable. Test names were anonymized and credentials were retained only in private temporary storage.
 
-All 16 live checks passed; see [the sanitized report](docker-report.json). The selected-node TUN connection and the guarded DNS query both passed. Separate regression checks confirm that `service status` works while the configuration writer lock is held, configuration mutations remain excluded, and three spaced service restarts complete with `NRestarts=0`. Rapid repeated restarts can intentionally hit systemd's normal start-rate limit; that is distinct from the fixed configuration-lock race.
+All 16 live checks passed on the source candidate identified in the report; subsequent compatible dependency security patches are separately covered by unit tests and CI. See [the sanitized report](docker-report.json). The selected-node TUN connection and the guarded DNS query both passed. Separate regression checks confirm that `service status` works while the configuration writer lock is held, configuration mutations remain excluded, and three spaced service restarts complete with `NRestarts=0`. Rapid repeated restarts can intentionally hit systemd's normal start-rate limit; that is distinct from the fixed configuration-lock race.
 
 This verifies the container environment. Native server SSH continuity, IPv6, other distributions, reboot recovery, and Windows/macOS runtime integration still need their own acceptance. The host's Clash Verge settings and node selections were not changed.
 

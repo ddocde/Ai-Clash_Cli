@@ -2,6 +2,8 @@
 
 ## 0.1.1 — Docker acceptance fixes
 
+- Patch locked rustls and optional quinn-proto dependencies to versions resolving the initial GitHub security advisories.
+
 - Exclude Mihomo built-in routing policies from `node test --all` using API types; preserve real nodes with policy-like names.
 - Return an error for empty latency-test selections rather than reporting empty success.
 - Remove configuration writer locks from systemd lifecycle/status commands, resolving a parent/child startup race.
